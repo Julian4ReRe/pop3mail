@@ -42,7 +42,7 @@ defmodule Pop3mail.Mixfile do
   # Type "mix help deps" for more examples and options
   defp deps do
     [
-      {:erlpop, "~> 1.2" , hex: "pop3client"},
+      {:pop3client, "~> 1.3"},
       {:ex_doc, "~> 0.19", only: :dev},
       {:credo,  "~> 0.5" , only: :dev}
     ]
