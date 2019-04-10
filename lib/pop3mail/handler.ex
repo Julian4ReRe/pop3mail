@@ -41,7 +41,6 @@ defmodule Pop3mail.Handler do
       defstruct delivered: nil, save_raw: false, base_dir: ""
    end
 
-
    @doc """
    Check if the mail must be skipped, if not process and store the email.
 
@@ -64,7 +63,7 @@ defmodule Pop3mail.Handler do
    end
 
    # Lookup the 'Delivered-To' header and look if it contains something (it should be an email address).
-   defp has_delivered_to_header(header_list) do
+   def has_delivered_to_header(header_list) do
       delivered_to = Header.lookup(header_list, "Delivered-To")
       String.length(delivered_to) > 2
    end
@@ -97,6 +96,22 @@ defmodule Pop3mail.Handler do
 
       # body
       [header_result] ++ process_and_store_body(mail.header_list, mail.body_content, dirname)
+   end
+
+@spec process_and_return(Mail.t) :: list(ParsedEmail.t)
+   def process_and_return(mail) do
+      date    = Header.lookup(mail.header_list, "Date")
+      # get the subject without encodings
+      subject = remove_encodings(Header.lookup(mail.header_list, "Subject"))
+      from    = Header.lookup(mail.header_list, "From")
+      # get the sender name without encodings
+      sender_name = get_sender_name(from)
+      from_email = get_sender_email(from)
+      body_content = decode_body_content(mail.header_list, mail.body_content)
+
+      Logger.info "  Process mail #{mail.mail_loop_counter}: #{date}"
+
+      %{date: date, subject: subject, sender_name: sender_name, sender_email: from_email, body: body_content}
    end
 
    # Store the header and log any errors.
@@ -165,7 +180,7 @@ defmodule Pop3mail.Handler do
       end
    end
 
-   @doc "Extract the sender name from the email 'From' header."
+   @doc "Extract the sender name from the email's 'From' header."
    @spec get_sender_name(String.t) :: String.t
    def get_sender_name(from) do
      from_splitted = String.split(from, ~r/[<>]/)
@@ -186,6 +201,25 @@ defmodule Pop3mail.Handler do
      else
        from
      end
+   end
+
+   @doc """
+   Extract the sender email address from the email's 'From' header.
+   """
+   @spec get_sender_email(String.t) :: String.t
+   def get_sender_email(from) do
+      from_splitted = String.split(from, ~r/[<>]/)
+      # if the format was:  name <email address> you should have a array of 2
+      if length(from_splitted) >= 2 do
+         from_email = from_splitted
+                    |> Enum.at(1)
+                    |> String.trim
+                    |> StringUtils.unquoted
+
+         remove_encodings(from_email)
+      else
+         from
+      end
    end
 
    @doc """

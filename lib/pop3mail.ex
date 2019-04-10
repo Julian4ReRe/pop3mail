@@ -85,6 +85,22 @@ defmodule Pop3mail do
      Pop3mail.EpopDownloader.download(epop_options)
    end
 
+   @spec retrieve(keyword) :: {:ok, integer} | {:error, String.t}
+   def retrieve(params) do
+     epop_options = %Pop3mail.EpopDownloader.Options{
+       username:   params["username"],
+       password:   params["password"],
+       server:     params["server"] || "pop.gmail.com",
+       port:       params["port"] || 995,
+       ssl:        params["ssl"],
+       max_mails:  params["max"],
+       delete:     params["delete"],
+       delivered:  params["delivered"],
+       save_raw:   params["raw"],
+       output_dir: params["output"] || "inbox"
+     }
+     Pop3mail.EpopDownloader.retrieve(epop_options)
+   end
    @doc ~S"""
    Lookup header in header list retrieved via epop.
 
