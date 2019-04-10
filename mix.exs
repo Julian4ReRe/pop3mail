@@ -16,7 +16,7 @@ defmodule Pop3mail.Mixfile do
         source_ref: "master",
         main: "Pop3mail",
         canonical: "http://hexdocs.pm/pop3mail",
-        source_url: "https://github.com/nico-amsterdam/pop3mail"
+        source_url: "https://github.com/Julian4ReRe/pop3mail"
       ],
       build_embedded: Mix.env() == :prod,
       start_permanent: Mix.env() == :prod,
