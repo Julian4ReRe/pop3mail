@@ -31,6 +31,21 @@ defmodule Pop3mail.EpopDownloader do
       defstruct username: "", password: "", server: "", port: 995, ssl: true, max_mails: nil, delete: false, delivered: nil, save_raw: false, output_dir: ""
    end
 
+   defmodule ParsedEmail do
+      @moduledoc """
+      A struct that holds parsed email contents for the Repo Mail Storage
+
+      It's fields are:
+        * 'date' - email send date from header
+        * 'subject' - string with the email subject
+        * 'sender_name' - string with the email sender name, sender email otherwise
+        * 'sender_email' - string with sender email
+        * 'body' - string with the email body
+      """
+      @type t :: %ParsedEmail{date: String.t, subject: String.t, sender_name: String.t, sender_email: String.t, body: String.t}
+      defstruct date: nil, subject: "", sender_name: "", sender_email: "", body: ""
+   end
+
    @doc """
    Read all emails and save them to disk.
 
@@ -49,6 +64,29 @@ defmodule Pop3mail.EpopDownloader do
        end
      case :epop_client.connect(ensure_at_symbol(username, server), password, connect_options) do
        {:ok,    client} -> retrieve_and_store_all(client, options)
+       {:error, reason} -> Logger.error(reason)
+                           {:error, reason}
+     end
+   end
+
+   @doc """
+   Read all emails and return them for further processing.
+
+   'options' - EpopDownloader.Options
+   """
+   @spec retrieve(Options.t) :: {:ok, list(ParsedEmail.t)} | {:error, String.t}
+   def retrieve(options) do
+     username = to_charlist(options.username)
+     password = to_charlist(options.password)
+     server = to_charlist(options.server)
+     connect_options = [{:addr, server}, {:port, options.port}, {:user, username}]
+     connect_options =
+       case is_nil(options.ssl) or options.ssl do
+         true  -> connect_options ++ [:ssl]
+         false -> connect_options
+       end
+     case :epop_client.connect(ensure_at_symbol(username, server), password, connect_options) do
+       {:ok,    client} -> retrieve_and_return_all(client, options)
        {:error, reason} -> Logger.error(reason)
                            {:error, reason}
      end
@@ -86,6 +124,28 @@ defmodule Pop3mail.EpopDownloader do
         {:ok, total_count}
    end
 
+   @doc """
+   Read all email and return them as list.
+
+   * `epop_client` - client returned by :epop_client.connect function.
+   * `options` - EpopDownloader.Options
+   """
+   @spec retrieve_and_return_all(epop_client, Options.t) :: {:ok, list(ParsedEmail.t)}
+   def retrieve_and_return_all(epop_client, options) do
+        # This information returned by the server is not always reliable
+        {:ok, {total_count, size_total}} = :epop_client.stat(epop_client)
+        count_formatted = format_number(total_count)
+        size_total_formatted = format_number(size_total)
+        Logger.info "#{count_formatted} emails, #{size_total_formatted} bytes total."
+        count = min(total_count, options.max_mails)
+        case count > 0 do
+          true -> 1..count |> Enum.map(&retrieve_and_return(epop_client, &1, options))
+            _ = :epop_client.quit(epop_client)
+          false -> {:ok, []}
+            _ = :epop_client.quit(epop_client)
+        end
+   end
+
    # add thousand separators to make the number human readable.
    defp format_number(num) do
      # reverse digits, add a dot after every 3 places and reverse again
@@ -108,6 +168,21 @@ defmodule Pop3mail.EpopDownloader do
    def retrieve_and_store(epop_client, mail_loop_counter, options) do
       case :epop_client.bin_retrieve(epop_client, mail_loop_counter) do
         {:ok, mail_content} -> result = parse_process_and_store(mail_content, mail_loop_counter, options.delivered, options.save_raw , options.output_dir)
+                               if options.delete do
+                                 :ok = :epop_client.delete(epop_client, mail_loop_counter)
+                               end
+                               # It might be time now to clean things up:
+                               # :erlang.garbage_collect()
+                               result
+        {:error, reason} -> Logger.error(reason)
+                            {:error, reason}
+      end
+   end
+
+@spec retrieve_and_return(epop_client, integer, Options.t) :: list(ParsedEmail.t) | {atom, String.t} | {:error, String.t, String.t}
+   def retrieve_and_return(epop_client, mail_loop_counter, options) do
+      case :epop_client.bin_retrieve(epop_client, mail_loop_counter) do
+        {:ok, mail_content} -> result = parse_process_and_return(mail_content, mail_loop_counter)
                                if options.delete do
                                  :ok = :epop_client.delete(epop_client, mail_loop_counter)
                                end
@@ -142,6 +217,16 @@ defmodule Pop3mail.EpopDownloader do
       end
    end
 
+
+@spec parse_process_and_return(String.t, integer) :: list(ParsedEmail.t) | {atom, String.t} | {:error, String.t, String.t}
+   def parse_process_and_return(mail_content, mail_loop_counter) do
+      parsed_result = epop_parse(mail_content)
+      case parsed_result do
+        {:message, header_list, body_content} -> process_and_return(mail_content, mail_loop_counter, header_list, body_content)
+        {_, _} -> parsed_result
+      end
+   end
+
    # call epop parser and catch parse exceptions
    defp epop_parse(mail_content) do
       try do
@@ -166,4 +251,15 @@ defmodule Pop3mail.EpopDownloader do
       Handler.check_process_and_store(mail, options)
    end
 
+   # Decode body, headers and return contents in struct.
+   # `options` - Handler.Options
+   defp process_and_return(mail_content, mail_loop_counter, header_list, body_content) do
+      mail = %Handler.Mail{
+        mail_content: mail_content,
+        mail_loop_counter: mail_loop_counter,
+        header_list: header_list,
+        body_content: body_content
+      }
+      Handler.process_and_return(mail)
+   end
 end
