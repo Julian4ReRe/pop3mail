@@ -111,7 +111,7 @@ defmodule Pop3mail.Handler do
 
       Logger.info "  Process mail #{mail.mail_loop_counter}: #{date}"
 
-      %{date: date, subject: subject, sender_name: sender_name, sender_email: from_email, body: body_content}
+      {:ok, %{date: date, subject: subject, sender_name: sender_name, sender_email: from_email, body: body_content}}
    end
 
    # Store the header and log any errors.
