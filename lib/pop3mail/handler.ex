@@ -98,7 +98,7 @@ defmodule Pop3mail.Handler do
       [header_result] ++ process_and_store_body(mail.header_list, mail.body_content, dirname)
    end
 
-@spec process_and_return(Mail.t) :: list(ParsedEmail.t)
+@spec process_and_return(Mail.t) :: ParsedEmail.t
    def process_and_return(mail) do
       date    = Header.lookup(mail.header_list, "Date")
       # get the subject without encodings
@@ -109,8 +109,6 @@ defmodule Pop3mail.Handler do
       from_email = get_sender_email(from)
       body_content = decode_body_content(mail.header_list, mail.body_content)
 
-      Logger.info "  Process mail #{mail.mail_loop_counter}: #{date}"
-      _ = body_content |> (Enum.map &(Logger.info "   Email body part: #{&1}"))
       {:ok, %{date: date, subject: subject, sender_name: sender_name, sender_email: from_email, body: body_content}}
    end
 
