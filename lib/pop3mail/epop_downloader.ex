@@ -140,11 +140,12 @@ defmodule Pop3mail.EpopDownloader do
         Logger.info "#{count_formatted} emails, #{size_total_formatted} bytes total."
         count = min(total_count, options.max_mails)
         case count > 0 do
-          true -> 1..count |> Enum.map(&retrieve_and_return(epop_client, &1, options))
-            _ = :epop_client.quit(epop_client)
+          true -> results = 1..count |> Enum.map(&retrieve_and_return(epop_client, &1, options)) |> Enum.map(&drop_errors(&1))
+            {:ok, results}
           false -> {:ok, []}
-            _ = :epop_client.quit(epop_client)
         end
+        _ = :epop_client.quit(epop_client)
+
    end
 
    # add thousand separators to make the number human readable.
@@ -156,6 +157,12 @@ defmodule Pop3mail.EpopDownloader do
      |> String.replace(~r/(\d{3})/, "\\1.")
      |> String.replace_suffix(".", "")
      |> String.reverse
+   end
+
+   defp drop_errors(result) do
+      with {:ok, res} <- result do
+        res
+      end
    end
 
    @doc """
@@ -180,7 +187,7 @@ defmodule Pop3mail.EpopDownloader do
       end
    end
 
-@spec retrieve_and_return(epop_client, integer, Options.t) :: list(ParsedEmail.t) | {atom, String.t} | {:error, String.t, String.t}
+@spec retrieve_and_return(epop_client, integer, Options.t) :: {:ok, ParsedEmail.t} | {:error, String.t, String.t}
    def retrieve_and_return(epop_client, mail_loop_counter, options) do
       case :epop_client.bin_retrieve(epop_client, mail_loop_counter) do
         {:ok, mail_content} -> result = parse_process_and_return(mail_content, mail_loop_counter)
@@ -189,7 +196,10 @@ defmodule Pop3mail.EpopDownloader do
                                end
                                # It might be time now to clean things up:
                                # :erlang.garbage_collect()
-                               result
+                               case result do
+                                 {:ok, parsed_email} -> {:ok, parsed_email}
+                                 {:error, message} -> {:error, message}
+                               end
         {:error, reason} -> Logger.error(reason)
                             {:error, reason}
       end
@@ -219,12 +229,12 @@ defmodule Pop3mail.EpopDownloader do
    end
 
 
-@spec parse_process_and_return(String.t, integer) :: list(ParsedEmail.t) | {atom, String.t} | {:error, String.t, String.t}
+@spec parse_process_and_return(String.t, integer) :: {:ok, ParsedEmail.t} | {:error, String.t, String.t}
    def parse_process_and_return(mail_content, mail_loop_counter) do
       parsed_result = epop_parse(mail_content)
       case parsed_result do
         {:message, header_list, body_content} -> process_and_return(mail_content, mail_loop_counter, header_list, body_content)
-        {_, _} -> parsed_result
+        {_, _} -> {:error, "Could not parse email: ", parsed_result}
       end
    end
 
