@@ -85,7 +85,7 @@ defmodule Pop3mail do
      Pop3mail.EpopDownloader.download(epop_options)
    end
 
-   @spec retrieve(keyword) :: {:ok, integer} | {:error, String.t}
+   @spec retrieve(keyword) :: {:ok, list(ParsedEmail.t)} | {:error, String.t}
    def retrieve(params) do
      epop_options = %Pop3mail.EpopDownloader.Options{
        username:   params["username"],
