@@ -110,7 +110,7 @@ defmodule Pop3mail.Handler do
       body_content = decode_body_content(mail.header_list, mail.body_content)
 
       Logger.info "  Process mail #{mail.mail_loop_counter}: #{date}"
-      Logger.info "   Email body: #{body_content}"
+      _ = body_content |> (Enum.map &(Logger.info "   Email body part: #{&1}"))
       {:ok, %{date: date, subject: subject, sender_name: sender_name, sender_email: from_email, body: body_content}}
    end
 
