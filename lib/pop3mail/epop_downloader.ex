@@ -1,6 +1,7 @@
 
 defmodule Pop3mail.EpopDownloader do
   alias Pop3mail.Handler
+  alias Pop3mail.Part
 
   require Logger
 
@@ -42,7 +43,7 @@ defmodule Pop3mail.EpopDownloader do
         * 'sender_email' - string with sender email
         * 'body' - string with the email body
       """
-      @type t :: %ParsedEmail{date: String.t, subject: String.t, sender_name: String.t, sender_email: String.t, body: String.t}
+      @type t :: %ParsedEmail{date: String.t, subject: String.t, sender_name: String.t, sender_email: String.t, body: list(Part.t)}
       defstruct date: "", subject: "", sender_name: "", sender_email: "", body: ""
    end
 
