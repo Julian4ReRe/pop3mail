@@ -15,7 +15,6 @@ defmodule Pop3mail.Mixfile do
       docs: [
         source_ref: "master",
         main: "Pop3mail",
-        canonical: "http://hexdocs.pm/pop3mail",
         source_url: "https://github.com/Julian4ReRe/pop3mail"
       ],
       build_embedded: Mix.env() == :prod,
@@ -61,7 +60,7 @@ defmodule Pop3mail.Mixfile do
       name: :pop3mail,
       maintainers: ["Nico Hoogervorst"],
       licenses: ["MIT"],
-      links: %{"GitHub" => "https://github.com/nico-amsterdam/pop3mail"}
+      links: %{"GitHub" => "https://github.com/Julian4ReRe/pop3mail"}
     ]
   end
 end
