@@ -139,10 +139,11 @@ defmodule Pop3mail.EpopDownloader do
         size_total_formatted = format_number(size_total)
         Logger.info "#{count_formatted} emails, #{size_total_formatted} bytes total."
         count = min(total_count, options.max_mails)
-        case count > 0 do
-          true -> results = 1..count |> Enum.map(&retrieve_and_return(epop_client, &1, options)) |> Enum.map(&drop_errors(&1))
+        if count > 0 do
+          results = 1..count |> Enum.map(&retrieve_and_return(epop_client, &1, options)) |> Enum.map(&drop_errors(&1))
             {:ok, results}
-          false -> {:ok, []}
+          else
+            {:ok, []}
         end
         _ = :epop_client.quit(epop_client)
 
